@@ -3,14 +3,14 @@ Um script em Python que funciona como Cliente de Atualização Dinâmica (DUC) p
 
 Este projeto utiliza uma adaptação do script `noip-duc`. Ele funciona como um Cliente de Atualização Dinâmica (DUC) para o **noip.com**, com foco em garantir a conectividade IPv6 para servidores atrás de CGNAT ou firewalls restritivos.
 
-## 📋 Descrição
+#  Descrição
 O script monitora o endereço IPv6 público da máquina e atualiza o registro DNS no No-IP sempre que uma mudança é detectada. 
 
 Diferente do cliente oficial do Windows, esta versão:
 1.  Foi modificada para **Python puro** (sem necessidade de instalar bibliotecas extras como `requests`).
 2.  Possui lógica específica para forçar a detecção de **IPv6**, essencial para o funcionamento correto do servidor web (Caddy).
 
-## ⚠️ Requisito Crítico (Configuração no Site)
+#  Requisito Crítico (Configuração no Site)
 
 Para que o IPv6 funcione, você **PRECISA** configurar o painel do No-IP:
 
@@ -19,10 +19,10 @@ Para que o IPv6 funcione, você **PRECISA** configurar o painel do No-IP:
 3.  Certifique-se de que existe um **registro AAAA (IPv6)** criado.
     * *Se não houver um registro AAAA, o No-IP aceitará a atualização, mas salvará apenas o IPv4, quebrando o acesso ao seu servidor Caddy.*
 
-## 🚀 Instalação e Uso (Windows)
+#  Instalação e Uso (Windows)
 
 ### 1. Configuração do Script
-Abra o arquivo `update_noip_ipv6.py` com um editor de texto (Notepad, VS Code) e edite as variáveis no topo:
+Abra o arquivo `noip_ipv4_and_ipv6.py` com um editor de texto (Notepad, VS Code) e edite as variáveis no topo:
 
 ```python
 USERNAME = "seu_usuario_noip"
