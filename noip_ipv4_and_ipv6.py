@@ -10,30 +10,31 @@ HOSTNAME = "SEU_REGISTRO_AAAA"
 INTERVALO = 600  # Tempo em segundos entre checagens (600s = 10 minutos)
 # ============================================================
 
-# URL especial do No-IP que força a conexão via IPv6
-# Isso garante que a gente não pegue o IPv4 por engano
-URL_UPDATE = "http://ip1.dynupdate6.no-ip.com/nic/update"
+# URLs de detecção de IP
+URL_CHECK_IPV4 = "https://api.ipify.org"
+URL_CHECK_IPV6 = "https://api6.ipify.org"
+
+# URL padrão de update do No-IP
+URL_UPDATE_BASE = "http://dynupdate.no-ip.com/nic/update"
 
 def log(mensagem):
-    """Função simples para mostrar mensagens com hora/data"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {mensagem}")
 
-def obter_ipv6_publico():
-    """Descobre qual é o seu IPv6 atual usando um serviço externo"""
+def obter_ip(url_api):
+    """Função genérica para pegar IP (seja v4 ou v6)"""
     try:
-        # api6.ipify.org só responde se você tiver IPv6 funcionando
-        with urllib.request.urlopen("https://api6.ipify.org", timeout=10) as response:
+        with urllib.request.urlopen(url_api, timeout=10) as response:
             return response.read().decode('utf-8')
-    except Exception as e:
-        log(f"Erro ao detectar IPv6: {e}")
+    except Exception:
+        # Silencia o erro para não poluir o log se um dos protocolos falhar
         return None
 
-def atualizar_noip(ipv6_atual):
-    """Envia o novo IP para o No-IP"""
-    full_url = f"{URL_UPDATE}?hostname={HOSTNAME}&myip={ipv6_atual}"
+def atualizar_noip(ip_address):
+    """Envia o IP para o No-IP"""
+    # Monta a URL. O No-IP detecta automaticamente se é v4 ou v6 pelo formato do IP
+    full_url = f"{URL_UPDATE_BASE}?hostname={HOSTNAME}&myip={ip_address}"
     
-    # Prepara a autenticação (Codifica usuário:senha em Base64)
     auth_str = f"{USERNAME}:{PASSWORD}"
     auth_bytes = auth_str.encode("ascii")
     base64_bytes = base64.b64encode(auth_bytes)
@@ -41,44 +42,49 @@ def atualizar_noip(ipv6_atual):
 
     req = urllib.request.Request(full_url)
     req.add_header("Authorization", f"Basic {base64_string}")
-    req.add_header("User-Agent", "Python No-IP Updater/1.0")
+    req.add_header("User-Agent", "Python Dual-Stack Updater/2.0")
 
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
-            resultado = response.read().decode('utf-8')
-            return resultado
-    except urllib.error.HTTPError as e:
-        return f"Erro HTTP: {e.code}"
+            return response.read().decode('utf-8')
     except Exception as e:
         return f"Erro de conexão: {e}"
 
 def main():
-    log(f"Iniciando atualizador IPv6 para: {HOSTNAME}")
-    ultimo_ip = None
+    log(f"--- Iniciando Atualizador Dual-Stack (IPv4 & IPv6) para: {HOSTNAME} ---")
+    
+    ultimo_ipv4 = None
+    ultimo_ipv6 = None
 
     while True:
-        # 1. Tenta descobrir o IPv6 atual da máquina
-        ipv6_atual = obter_ipv6_publico()
-
-        if ipv6_atual:
-            # 2. Se o IP mudou desde a última vez, atualiza
-            if ipv6_atual != ultimo_ip:
-                log(f"Novo IPv6 detectado: {ipv6_atual}. Atualizando No-IP...")
-                resposta = atualizar_noip(ipv6_atual)
-                
-                # Verifica a resposta do servidor No-IP
-                if "good" in resposta or "nochg" in resposta:
-                    log(f"Sucesso! Servidor respondeu: {resposta}")
-                    ultimo_ip = ipv6_atual
-                else:
-                    log(f"Falha na atualização. Resposta: {resposta}")
+        # 1. Verifica IPv4
+        ipv4_atual = obter_ip(URL_CHECK_IPV4)
+        if ipv4_atual and ipv4_atual != ultimo_ipv4:
+            log(f"[IPv4] Mudança detectada: {ipv4_atual}")
+            resp = atualizar_noip(ipv4_atual)
+            if "good" in resp or "nochg" in resp:
+                log(f"[IPv4] Atualizado com sucesso: {resp}")
+                ultimo_ipv4 = ipv4_atual
             else:
-                # Opcional: comentar esta linha para limpar o log
-                print(f"IPv6 mantém-se o mesmo ({ipv6_atual}). Nenhuma ação necessária.")
-        else:
-            log("Não foi possível obter o IPv6 público. Verifique sua conexão.")
+                log(f"[IPv4] Erro na resposta: {resp}")
+        elif not ipv4_atual:
+            log("[IPv4] Não foi possível detectar.")
 
-        # 3. Espera X segundos antes de tentar de novo
+        # 2. Verifica IPv6
+        ipv6_atual = obter_ip(URL_CHECK_IPV6)
+        if ipv6_atual and ipv6_atual != ultimo_ipv6:
+            log(f"[IPv6] Mudança detectada: {ipv6_atual}")
+            resp = atualizar_noip(ipv6_atual)
+            if "good" in resp or "nochg" in resp:
+                log(f"[IPv6] Atualizado com sucesso: {resp}")
+                ultimo_ipv6 = ipv6_atual
+            else:
+                log(f"[IPv6] Erro na resposta: {resp}")
+        elif not ipv6_atual:
+            # Comum se a rede não suportar IPv6
+            pass 
+
+        # 3. Dorme
         time.sleep(INTERVALO)
 
 if __name__ == "__main__":
